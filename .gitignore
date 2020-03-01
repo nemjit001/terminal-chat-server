@@ -1,0 +1,38 @@
+# Tijmen Verhoef, Amsterdam
+
+# VSCode
+.settings/
+.vscode/
+.classpath
+.project
+
+# JetBrains
+.idea/
+
+# C(++)
+*.o
+*.y
+*.out
+
+# Python
+__pycache__/
+venv/
+*.pyc
+
+# Gradle
+.gradle/
+build/
+
+# Django
+*.log
+*.pot
+
+# General
+*.env
+database.*
+db.*
+*.db
+
+# build folders
+bin/
+build/
