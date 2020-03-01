@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(net-client VERSION 0.1.0)
 
-set(TARGET_NAME net-client)
+set(TARGET_NAME net-server)
 
 include(CTest)
 enable_testing()
 
-add_executable(${TARGET_NAME} main.cpp Client.cpp CircularLineBuffer.cpp socket.cpp)
+add_executable(${TARGET_NAME} main.cpp Server.cpp CircularLineBuffer.cpp socket.cpp)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
