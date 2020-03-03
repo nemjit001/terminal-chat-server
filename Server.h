@@ -5,10 +5,18 @@
 #include "CircularLineBuffer.h"
 #include <thread>
 #include <iostream>
+#include <regex>
+#include <vector>
 
 #ifndef _WIN32
     #include <pthread.h>
 #endif
+
+typedef struct user_t
+{
+    std::string name;
+    SOCKET socket;
+} user;
 
 class Server
 {
@@ -19,6 +27,7 @@ private:
     SOCKET serverSocket, clientSocket;
     std::thread listenThread, connectionThread, userInputThread;
     CircularLineBuffer *socketBuffer, *inputBuffer;
+    std::vector<user> connectedUsers;
 
     inline void startThreads()
     {
@@ -80,6 +89,11 @@ public:
     int readFromClientSockets();
     int listenOnServerSocket();
     int readFromStdin();
+    void handleReceivedData(SOCKET fd);
+    void createUser(std::string name, SOCKET fd);
+    void listUsers(SOCKET fd);
+    void passMessage(std::string data, SOCKET fd);
+    void deleteUser(std::string data);
 };
 
 #endif
