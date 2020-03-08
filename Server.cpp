@@ -58,6 +58,7 @@ Server::~Server()
 
 void Server::setup(const char *address, int port)
 {
+    std::cout << "Using hostname " << address << " on port " << port << std::endl;
     sockaddr_in service;
     this->serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
@@ -151,7 +152,7 @@ void Server::passMessage(std::string data, SOCKET fd)
     receivingUserName = data.substr(startNameIndex + 1, endNameIndex - startNameIndex - 1);
     message = data.substr(endNameIndex + 1);
 
-    if (!exists(this->connectedUsers, receivingUserName) || receivingUserName.compare(sendingUsername) == 0) 
+    if (!exists(this->connectedUsers, receivingUserName)) 
     {
         acknowledge = "SEND-FAIL\n";
         send(fd, acknowledge.c_str(), acknowledge.length(), 0);
@@ -160,8 +161,9 @@ void Server::passMessage(std::string data, SOCKET fd)
 
     response = "DELIVERY " + sendingUsername + " " + message;
 
-    send(get_socket(this->connectedUsers, receivingUserName), response.c_str(), response.length(), 0);
     send(fd, acknowledge.c_str(), acknowledge.length(), 0);
+
+    send(get_socket(this->connectedUsers, receivingUserName), response.c_str(), response.length(), 0);
 }
 
 void Server::handleReceivedData(SOCKET fd)
