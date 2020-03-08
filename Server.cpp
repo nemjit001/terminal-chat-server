@@ -108,10 +108,10 @@ void Server::listUsers(SOCKET fd)
 
     for (user currUser : this->connectedUsers)
     {
-        userList += currUser.name + ",";
+        userList += currUser.name + ", ";
     }
 
-    userList = userList.substr(0, userList.length() - 1) + "\n";
+    userList = userList.substr(0, userList.length() - 2) + "\n";
     send(fd, userList.c_str(), userList.length(), 0);
 }
 
