@@ -84,17 +84,20 @@ void Server::createUser(std::string name, SOCKET fd)
     {
         const char *response = "FAIL-TAKEN\n";
         send(fd, response, strlen(response), 0);
+        sock_close(fd);
     }
     else if (!std::regex_match(newUser.name, std::regex("[A-Za-z0-9]+")))
     {
         const char *response = "FAIL-INVALID\n";
         send(fd, response, strlen(response), 0);
+        sock_close(fd);
     }
     else
     {
         this->connectedUsers.push_back(newUser);
         std::string response = "HELLO " + newUser.name + "\n";
         send(fd, response.c_str(), response.length(), 0);
+        std::cout << "Connected " << name << std::endl;
     }
 }
 
@@ -109,6 +112,19 @@ void Server::listUsers(SOCKET fd)
 
     userList = userList.substr(0, userList.length() - 1) + "\n";
     send(fd, userList.c_str(), userList.length(), 0);
+}
+
+void Server::deleteUser(SOCKET fd)
+{
+    for (int i = 0; i < this->connectedUsers.size(); i++)
+    {
+        if (this->connectedUsers.at(i).socket == fd)
+        {
+            FD_CLR(fd, &this->connectedSockets);
+            this->connectedUsers.erase(this->connectedUsers.begin() + i);
+            break;
+        }
+    }
 }
 
 void Server::passMessage(std::string data, SOCKET fd)
@@ -148,33 +164,6 @@ void Server::passMessage(std::string data, SOCKET fd)
     send(fd, acknowledge.c_str(), acknowledge.length(), 0);
 }
 
-void Server::deleteUser(std::string data)
-{
-    std::string username;
-
-    for (int i = 0; i < data.length(); i++)
-    {
-        if (data.at(i) == ' ')
-        {
-            username = data.substr(i + 1, data.length() - i - 2);
-            break;
-        }
-    }
-
-    std::cout << username << std::endl;
-
-    if (!exists(this->connectedUsers, username)) return;
-
-    for (int i = 0; i < this->connectedUsers.size(); i++)
-    {
-        if (this->connectedUsers.at(i).name == username)
-        {
-            sock_close(this->connectedUsers.at(i).socket);
-            this->connectedUsers.erase(this->connectedUsers.begin() + i);
-        }
-    }
-}
-
 void Server::handleReceivedData(SOCKET fd)
 {
     std::string data = this->socketBuffer->read();
@@ -184,17 +173,18 @@ void Server::handleReceivedData(SOCKET fd)
         std::string username = data.substr(11, data.length());
         this->createUser(username.substr(0, username.length() - 1), fd);
     }
-    else if (data.substr(0, 4) == "SEND")
+    else if (std::regex_match(data, std::regex("SEND[\\w\\d\\s\\W\\S\\D]*")))
     {
         this->passMessage(data, fd);
     }
-    else if (std::regex_match(data, std::regex("WHO[\\w\\d\\s]*")))
+    else if (std::regex_match(data, std::regex("WHO[\\w\\d\\s\\W\\S\\D]*")))
     {
         this->listUsers(fd);
     }
-    else if (std::regex_match(data, std::regex("QUIT[\\w\\d\\s]*")))
+    else if (std::regex_match(data, std::regex("QUIT[\\w\\d\\s\\W\\S\\D]*")))
     {
-        this->deleteUser(data);
+        this->deleteUser(fd);
+        std::cout << "Logged off socket " << fd << std::endl;
     }
     else
     {
@@ -207,23 +197,60 @@ int Server::step()
 {
     std::string userInput = this->inputBuffer->read();
 
-    if (std::regex_match(userInput, std::regex("!quit[\\w\\d\\s]*")))
+    if (std::regex_match(userInput, std::regex("!quit[\\w\\d\\s\\W\\S\\D]*")))
     {
         this->setStopped(true);
     }
 
-    if (std::regex_match(userInput, std::regex("!count[\\w\\d\\s]*")))
+    if (std::regex_match(userInput, std::regex("!count[\\w\\d\\s\\W\\S\\D]*")))
     {
         std::cout << "Connected Clients: " << this->connectedSockets.fd_count << std::endl;
     }
 
-    if (std::regex_match(userInput, std::regex("!broadcast[\\w\\d\\s]*")))
+    if (std::regex_match(userInput, std::regex("!broadcast[\\w\\d\\s\\W\\S\\D]*")))
     {
         std::string msg = "[Server] " + userInput.substr(11, userInput.length());
 
         for (int i = 0; i < this->connectedSockets.fd_count; i++)
         {
             send(this->connectedSockets.fd_array[i], msg.c_str(), msg.length(), 0);
+        }
+    }
+
+    if (std::regex_match(userInput, std::regex("!help[\\w\\d\\s\\W\\S\\D]*")))
+    {
+        std::cout <<
+        "--------------------------------------------------------------------------"
+        << std::endl <<
+        "Commands available:"
+        << std::endl <<
+        "!count\t\t|\tlists how many clients are connected"
+        << std::endl <<
+        "!broadcast\t|\tsend a message to all other users under the name [Server]"
+        << std::endl <<
+        "!quit\t\t|\tclose the server and disconnect all clients"
+        << std::endl <<
+        "!help\t\t|\tdisplay this help"
+        << std::endl <<
+        "--------------------------------------------------------------------------"
+        << std::endl;
+    }
+
+    for (user user : this->connectedUsers)
+    {
+        bool exists = false;
+        for (int i = 0; i < this->connectedSockets.fd_count; i++)
+        {
+            if (user.socket == this->connectedSockets.fd_array[i])
+            {
+                exists = true;
+            }
+        }
+
+        if (!exists)
+        {
+            this->deleteUser(user.socket);
+            std::cout << "Logged off socket " << user.socket << " because the connection was lost" << std::endl;
         }
     }
 
@@ -242,7 +269,7 @@ void Server::setStopped(bool val)
 
 int Server::listenOnServerSocket()
 {
-    const char *greeting = "You have been successfully connected to the server!\n";
+    const char *greeting = "Connection established...\n";
 
     this->clientSocket = accept(this->serverSocket, NULL, NULL);
 

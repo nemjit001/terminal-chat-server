@@ -93,7 +93,7 @@ public:
     void createUser(std::string name, SOCKET fd);
     void listUsers(SOCKET fd);
     void passMessage(std::string data, SOCKET fd);
-    void deleteUser(std::string data);
+    void deleteUser(SOCKET fd);
 };
 
 #endif
