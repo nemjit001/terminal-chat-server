@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.0)
-project(net-client VERSION 0.1.0)
+project(net-server VERSION 0.1.0)
 
 set(TARGET_NAME net-server)
 
