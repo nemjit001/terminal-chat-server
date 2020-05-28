@@ -20,13 +20,15 @@ typedef struct user_t
 
 class Server
 {
-protected:
+private:
     bool stop;
     fd_set connectedSockets;
     timeval interval;
     SOCKET serverSocket, clientSocket;
     std::thread listenThread, connectionThread, userInputThread;
     CircularLineBuffer *socketBuffer, *inputBuffer;
+    std::vector<user> connectedUsers;
+
     inline void startThreads()
     {
         this->listenThread = std::thread(&Server::listenOnServerSocketThread, this);
@@ -75,7 +77,7 @@ protected:
                 this->setStopped(true);
             }
         }
-    }
+    } 
 
 public:
     Server();
@@ -88,23 +90,10 @@ public:
     int listenOnServerSocket();
     int readFromStdin();
     void handleReceivedData(SOCKET fd);
-};
-
-class ChatServer : Server
-{
-private:
-    std::vector<user> connectedUsers; 
-
-public:
-    ChatServer();
-    ~ChatServer();
-    int step();
-    void handleReceivedData(SOCKET fd);
     void createUser(std::string name, SOCKET fd);
     void listUsers(SOCKET fd);
     void passMessage(std::string data, SOCKET fd);
     void deleteUser(SOCKET fd);
-    bool exists(std::vector<user> vec, std::string val);
 };
 
 #endif

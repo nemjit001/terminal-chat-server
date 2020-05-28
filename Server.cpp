@@ -1,156 +1,6 @@
 #include "Server.h"
 
-/**
- * Server declarations
- */
-
-Server::Server()
-{
-    sock_init();
-    this->interval.tv_sec = 1;
-    this->interval.tv_usec = 0;
-
-    memset(&this->connectedSockets, 0, sizeof(this->connectedSockets));
-    FD_ZERO(&this->connectedSockets);
-
-    this->stop = false;
-    this->socketBuffer = new CircularLineBuffer;
-    this->inputBuffer = new CircularLineBuffer;
-}
-
-Server::~Server()
-{
-    sock_close(this->serverSocket);
-    sock_close(this->clientSocket);
-    sock_quit();
-
-    this->stopThreads();
-
-    delete this->socketBuffer;
-    delete this->inputBuffer;
-}
-
-int Server::step()
-{
-    return 0;
-}
-
-void Server::setup(const char *address, int port)
-{
-    std::cout << "Using hostname " << address << " on port " << port << std::endl;
-    sockaddr_in service;
-    this->serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-    if (!sock_valid(this->serverSocket)) this->setStopped(true);
-
-    service.sin_family = AF_INET;
-    service.sin_addr.s_addr = inet_addr(address);
-    service.sin_port = htons(port);
-
-    if (bind(this->serverSocket, (SOCKADDR *) & service, sizeof (service)) != 0) this->setStopped(true);
-
-    if (listen(this->serverSocket, SOMAXCONN) == SOCKET_ERROR) this->setStopped(true);
-
-    this->startThreads();
-}
-
-bool Server::isStopped()
-{
-    return this->stop;
-}
-
-void Server::setStopped(bool val)
-{
-    this->stop = val;
-}
-
-int Server::listenOnServerSocket()
-{
-    const char *greeting = "Connection established...\n";
-
-    this->clientSocket = accept(this->serverSocket, NULL, NULL);
-
-    if (!sock_valid(this->clientSocket)) return -1;
-
-    FD_SET(this->clientSocket, &this->connectedSockets);
-    
-    send(this->clientSocket, greeting, strlen(greeting), 0);
-
-    return 0;
-}
-
-int Server::readFromClientSockets()
-{
-    fd_set rfds = this->connectedSockets;
-    int socketCount = select(0, &rfds, NULL, NULL, &this->interval);
-
-    for (int i = 0; i < socketCount; i++)
-    {
-        char buffer[4096];
-
-        int bytesReceived = recv(rfds.fd_array[i], buffer, 4096, 0);
-
-        if (bytesReceived < 0)
-        {
-            FD_CLR(rfds.fd_array[i], &this->connectedSockets);
-        }
-
-        this->socketBuffer->write(buffer, bytesReceived);
-
-        this->handleReceivedData(rfds.fd_array[i]);
-    }
-
-    return 0;
-}
-
-int Server::readFromStdin()
-{
-    std::string userInput;
-    getline(std::cin, userInput);
-
-    userInput += '\n';
-
-    if (this->inputBuffer->write(userInput.c_str(), userInput.length())) return userInput.length();
-
-    return -1;
-}
-
-void Server::handleReceivedData(SOCKET fd)
-{
-    
-}
-
-/**
- * ChatServer declarations
- */
-
-ChatServer::ChatServer()
-{
-    sock_init();
-    this->interval.tv_sec = 1;
-    this->interval.tv_usec = 0;
-
-    memset(&this->connectedSockets, 0, sizeof(this->connectedSockets));
-    FD_ZERO(&this->connectedSockets);
-
-    this->stop = false;
-    this->socketBuffer = new CircularLineBuffer;
-    this->inputBuffer = new CircularLineBuffer;
-}
-
-ChatServer::~ChatServer()
-{
-    sock_close(this->serverSocket);
-    sock_close(this->clientSocket);
-    sock_quit();
-
-    this->stopThreads();
-
-    delete this->socketBuffer;
-    delete this->inputBuffer;
-}
-
-bool ChatServer::exists(std::vector<user> vec, std::string val)
+bool exists(std::vector<user> vec, std::string val)
 {
     for (int i = 0; i < vec.size(); i++)
     {
@@ -180,7 +30,52 @@ std::string get_name(std::vector<user> vec, SOCKET fd)
     return "";
 }
 
-void ChatServer::createUser(std::string name, SOCKET fd)
+Server::Server()
+{
+    sock_init();
+    this->interval.tv_sec = 1;
+    this->interval.tv_usec = 0;
+
+    memset(&this->connectedSockets, 0, sizeof(this->connectedSockets));
+    FD_ZERO(&this->connectedSockets);
+
+    this->stop = false;
+    this->socketBuffer = new CircularLineBuffer;
+    this->inputBuffer = new CircularLineBuffer;
+}
+
+Server::~Server()
+{
+    sock_close(this->serverSocket);
+    sock_close(this->clientSocket);
+    sock_quit();
+
+    this->stopThreads();
+
+    delete this->socketBuffer;
+    delete this->inputBuffer;
+}
+
+void Server::setup(const char *address, int port)
+{
+    std::cout << "Using hostname " << address << " on port " << port << std::endl;
+    sockaddr_in service;
+    this->serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    if (!sock_valid(this->serverSocket)) this->setStopped(true);
+
+    service.sin_family = AF_INET;
+    service.sin_addr.s_addr = inet_addr(address);
+    service.sin_port = htons(port);
+
+    if (bind(this->serverSocket, (SOCKADDR *) & service, sizeof (service)) != 0) this->setStopped(true);
+
+    if (listen(this->serverSocket, SOMAXCONN) == SOCKET_ERROR) this->setStopped(true);
+
+    this->startThreads();
+}
+
+void Server::createUser(std::string name, SOCKET fd)
 {
     user newUser;
     newUser.name = name;
@@ -207,7 +102,7 @@ void ChatServer::createUser(std::string name, SOCKET fd)
     }
 }
 
-void ChatServer::listUsers(SOCKET fd)
+void Server::listUsers(SOCKET fd)
 {
     std::string userList = "WHO-OK ";
 
@@ -220,7 +115,7 @@ void ChatServer::listUsers(SOCKET fd)
     send(fd, userList.c_str(), userList.length(), 0);
 }
 
-void ChatServer::deleteUser(SOCKET fd)
+void Server::deleteUser(SOCKET fd)
 {
     for (int i = 0; i < this->connectedUsers.size(); i++)
     {
@@ -233,7 +128,7 @@ void ChatServer::deleteUser(SOCKET fd)
     }
 }
 
-void ChatServer::passMessage(std::string data, SOCKET fd)
+void Server::passMessage(std::string data, SOCKET fd)
 {
     std::string receivingUserName, message, response;
     std::string sendingUsername = get_name(this->connectedUsers, fd);
@@ -271,7 +166,7 @@ void ChatServer::passMessage(std::string data, SOCKET fd)
     send(get_socket(this->connectedUsers, receivingUserName), response.c_str(), response.length(), 0);
 }
 
-void ChatServer::handleReceivedData(SOCKET fd)
+void Server::handleReceivedData(SOCKET fd)
 {
     std::string data = this->socketBuffer->read();
 
@@ -300,7 +195,7 @@ void ChatServer::handleReceivedData(SOCKET fd)
     }
 }
 
-int ChatServer::step()
+int Server::step()
 {
     std::string userInput = this->inputBuffer->read();
 
@@ -362,4 +257,65 @@ int ChatServer::step()
     }
 
     return 0;
+}
+
+bool Server::isStopped()
+{
+    return this->stop;
+}
+
+void Server::setStopped(bool val)
+{
+    this->stop = val;
+}
+
+int Server::listenOnServerSocket()
+{
+    const char *greeting = "Connection established...\n";
+
+    this->clientSocket = accept(this->serverSocket, NULL, NULL);
+
+    if (!sock_valid(this->clientSocket)) return -1;
+
+    FD_SET(this->clientSocket, &this->connectedSockets);
+    
+    send(this->clientSocket, greeting, strlen(greeting), 0);
+
+    return 0;
+}
+
+int Server::readFromClientSockets()
+{
+    fd_set rfds = this->connectedSockets;
+    int socketCount = select(0, &rfds, NULL, NULL, &this->interval);
+
+    for (int i = 0; i < socketCount; i++)
+    {
+        char buffer[4096];
+
+        int bytesReceived = recv(rfds.fd_array[i], buffer, 4096, 0);
+
+        if (bytesReceived < 0)
+        {
+            FD_CLR(rfds.fd_array[i], &this->connectedSockets);
+        }
+
+        this->socketBuffer->write(buffer, bytesReceived);
+
+        this->handleReceivedData(rfds.fd_array[i]);
+    }
+
+    return 0;
+}
+
+int Server::readFromStdin()
+{
+    std::string userInput;
+    getline(std::cin, userInput);
+
+    userInput += '\n';
+
+    if (this->inputBuffer->write(userInput.c_str(), userInput.length())) return userInput.length();
+
+    return -1;
 }
